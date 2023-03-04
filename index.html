@@ -1,0 +1,210 @@
+<html>
+
+<head>
+  <title>Procedural Gen Erencan</title>
+</head>
+
+<style>
+  body {
+    margin: 0;
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+  }
+</style>
+
+<body>
+  <link rel="shortcut icon" href="#">
+
+
+  <style>
+    body {
+      font-family: Monospace;
+      background-color: #000;
+      color: #fff;
+      margin: 0px;
+      overflow: hidden;
+    }
+
+    #info {
+      position: absolute;
+      top: 10px;
+      width: 100%;
+      text-align: center;
+    }
+  </style>
+
+  <div id="info">
+    <p>Autumn 2023 - Intro to CG - Erencan 14268902</p>
+  </div>
+
+  <script type="importmap">
+			{
+				"imports": {
+					"three": "./build/three.module.js",
+					"dat.gui": "./node_modules/dat.gui/build/dat.gui.module.js"
+				}
+			}
+		</script>
+
+  <script type="module">
+
+    import * as THREE from 'three';
+    import { OrbitControls } from './build/controls/OrbitControls.js';
+    import * as dat from 'dat.gui';
+
+    //create the scene
+    var scene = new THREE.Scene();
+    var ratio = window.innerWidth / window.innerHeight;
+    //create the perspective camera
+    //for parameters see https://threejs.org/docs/#api/cameras/PerspectiveCamera
+    var camera = new THREE.PerspectiveCamera(45, ratio, 0.1, 1000);
+
+    //set the camera position
+    camera.position.set(0, 0, 15);
+    // and the direction
+    camera.lookAt(0, 0, 1);
+
+    //create the webgl renderer
+    var renderer = new THREE.WebGLRenderer();
+
+    //set the size of the rendering window
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    //add the renderer to the current document
+    document.body.appendChild(renderer.domElement);
+
+    var Settings = { 
+      timeSpeed: 1.0, 
+      amplitude: 5.0, 
+      rippleDropoff: 10,
+      epicentreX: 50.0,
+      epicentreZ: 50.0,
+    };
+    var Boat = { 
+      length: 3, 
+      rotationY: 0.0,
+      positionX: 0.0, 
+      positionY: 0.0,
+    };
+
+    var time = 0;
+    var worldSize = 100;
+
+    //GUI
+    const gui = new dat.GUI();
+    const settingsFolder = gui.addFolder('Settings');
+    settingsFolder.add(Settings, 'amplitude', 0, 50);
+    settingsFolder.add(Settings, 'rippleDropoff', 2, 50);
+    settingsFolder.add(Settings, 'epicentreX', 0, worldSize);
+    settingsFolder.add(Settings, 'epicentreZ', 0, worldSize);
+    settingsFolder.open();
+    const boatFolder = gui.addFolder('Boat');
+    boatFolder.add(Boat, 'length', 2, 6);
+    boatFolder.add(Boat, 'rotationY', 0, 180);
+    boatFolder.add(Boat, 'positionX', 0, worldSize);
+    boatFolder.add(Boat, 'positionY', 0, worldSize);
+    boatFolder.open();
+
+    var distance = function (x, y, x1, y1) {
+      return 1 - Math.sqrt(Math.pow(x1 - x, 2) + Math.pow(y1 - y, 2)) / worldSize;
+    }
+
+    var ReDrawMesh = function () {
+      var vIndex = 0;
+      for (var z = 0; z < worldSize; z++) {
+        for (var x = 0; x < worldSize; x++) {
+          var vamp = Settings.amplitude * (distance(x, z, Settings.epicentreX, Settings.epicentreZ) / Settings.rippleDropoff);
+
+          //sin(sqrt(x2+y2))
+          var vtime = Math.sin(time);// * Math.PI;
+          var xy = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + -Settings.epicentreX, 2) + Math.pow(z + -Settings.epicentreZ, 2)));
+          var xy1 = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + 1 + -Settings.epicentreX, 2) + Math.pow(z + -Settings.epicentreZ, 2)));
+          var zy1 = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + -Settings.epicentreX, 2) + Math.pow(z + 1 + -Settings.epicentreZ, 2)));
+          var xzy1 = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + 1 + -Settings.epicentreX, 2) + Math.pow(z + 1 + -Settings.epicentreZ, 2)));
+
+          //tri 1
+          vertices[vIndex] = 0 + x;
+          vertices[1 + vIndex] = xy;
+          vertices[2 + vIndex] = 0 + z;
+
+          vertices[3 + vIndex] = 0 + x;
+          vertices[4 + vIndex] = zy1;
+          vertices[5 + vIndex] = 1.0 + z;
+
+          vertices[6 + vIndex] = 1.0 + x;
+          vertices[7 + vIndex] = xy1;
+          vertices[8 + vIndex] = 0 + z;
+
+          //tri 2
+          vertices[9 + vIndex] = 0 + x;
+          vertices[10 + vIndex] = zy1;
+          vertices[11 + vIndex] = 1.0 + z;
+
+          vertices[12 + vIndex] = 1.0 + x;
+          vertices[13 + vIndex] = xzy1;
+          vertices[14 + vIndex] = 1.0 + z;
+
+          vertices[15 + vIndex] = 1.0 + x;
+          vertices[16 + vIndex] = xy1;
+          vertices[17 + vIndex] = 0 + z;
+
+          vIndex += 18;
+        }
+      }
+
+      // itemSize = 3 because there are 3 values per vertex
+      geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    }
+
+    //create geometry
+    const geometry = new THREE.BufferGeometry();
+    const vertices = new Float32Array(18 * worldSize * worldSize);
+    ReDrawMesh();
+    //add mat
+    var mat = new THREE.MeshBasicMaterial();
+    //set the color of the cube
+    mat.color = new THREE.Color(0, 0.8, 1);
+    //then set the renderer to wireframe
+    mat.wireframe = true;
+    //create mesh
+    const mesh = new THREE.Mesh(geometry, mat);
+    //reposition mesh
+    mesh.position.set(-worldSize / 2, 0, -worldSize / 2);
+    //add to scene
+    scene.add(mesh);
+
+    var controls = new OrbitControls(camera, renderer.domElement);
+
+    var Update = function () {
+      //call the render with the scene and the camera
+      renderer.render(scene, camera);
+
+      controls.update();
+      time += 0.1;
+
+      ReDrawMesh();
+      requestAnimationFrame(Update);
+    };
+
+    requestAnimationFrame(Update);
+
+    //this function is called when the window is resized
+    var MyResize = function () {
+      var width = window.innerWidth;
+      var height = window.innerHeight;
+      renderer.setSize(width, height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
+    };
+
+    //link the resize of the window to the update of the camera
+    window.addEventListener('resize', MyResize);
+
+  </script>
+</body>
+
+</html>
