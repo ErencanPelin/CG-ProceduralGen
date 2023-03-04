@@ -76,18 +76,18 @@
     //add the renderer to the current document
     document.body.appendChild(renderer.domElement);
 
-    var Settings = { 
-      timeSpeed: 1.0, 
-      amplitude: 5.0, 
+    var Settings = {
+      timeSpeed: 1.0,
+      amplitude: 5.0,
       rippleDropoff: 10,
       epicentreX: 50.0,
       epicentreZ: 50.0,
     };
-    var Boat = { 
-      length: 3, 
+    var Boat = {
+      length: 3,
       rotationY: 0.0,
-      positionX: 0.0, 
-      positionY: 0.0,
+      positionX: 0.0,
+      positionZ: 0.0,
     };
 
     var time = 0;
@@ -104,57 +104,34 @@
     const boatFolder = gui.addFolder('Boat');
     boatFolder.add(Boat, 'length', 2, 6);
     boatFolder.add(Boat, 'rotationY', 0, 180);
-    boatFolder.add(Boat, 'positionX', 0, worldSize);
-    boatFolder.add(Boat, 'positionY', 0, worldSize);
+    boatFolder.add(Boat, 'positionX', 0, worldSize / 2);
+    boatFolder.add(Boat, 'positionZ', 0, worldSize / 2);
     boatFolder.open();
 
     var distance = function (x, y, x1, y1) {
       return 1 - Math.sqrt(Math.pow(x1 - x, 2) + Math.pow(y1 - y, 2)) / worldSize;
     }
 
-    var DrawBoat = function () {
-      var startZ = -Boat.length * 0.5;
-      var stopZ = Boat.length * 0.5;
-
-      //top deck
-      boatVerts[0] = -0.5;
-      boatVerts[1] = 0.8;
-      boatVerts[2] = startZ;
-
-      boatVerts[3] = -0.5;
-      boatVerts[4] = 0.8;
-      boatVerts[5] = stopZ;
-
-      boatVerts[6] = 0.5;
-      boatVerts[7] = 0.8;
-      boatVerts[8] = startZ;
-
-      boatVerts[9] = -0.5;
-      boatVerts[10] = 0.8;
-      boatVerts[11] = stopZ;
-
-      boatVerts[12] = 0.5;
-      boatVerts[13] = 0.8;
-      boatVerts[14] = stopZ;
-
-      boatVerts[15] = 0.5;
-      boatVerts[16] = 0.8;
-      boatVerts[17] = startZ;
+    var UpdateBoat = function () {
       
-      //side 1
-      boatVerts[18] = -0.5;
-      boatVerts[19] = 0.8;
-      boatVerts[20] = startZ;
+      var x = Boat.positionX - 1;
+      var z = Boat.positionZ - 1;
+      //calculate the boat's height
+      var vamp = Settings.amplitude * (distance(x, z, Settings.epicentreX, Settings.epicentreZ) / Settings.rippleDropoff);
+      var vtime = Math.sin(time);// * Math.PI;
+      var xy = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + -Settings.epicentreX, 2) + Math.pow(z + -Settings.epicentreZ, 2)));
 
-      boatVerts[21] = -0.5;
-      boatVerts[22] = 0.8;
-      boatVerts[23] = stopZ;
+      //find the normal of the water below us so we can set our rotation equivalent
+      
+      //calculate the direction we should be facing based off the normal we found:
+      //var axis = new T.Vector3().crossVectors(up, normal).normalize();
 
-      boatVerts[24] = 0;
-      boatVerts[25] = -0.2;
-      boatVerts[26] = stopZ;
-
-      boatGeometry.setAttribute('position', new THREE.BufferAttribute(boatVerts, 3));
+      boatMesh.scale.set(1, 1, Boat.length);
+      boatMesh.rotation.y = (Boat.rotationY / 360) * Math.PI * 2; //degs to rads
+      boatMesh.position.set(
+        Boat.positionX,
+        xy + 0.5,
+        Boat.positionZ);
     }
 
     var ReDrawMesh = function () {
@@ -202,15 +179,14 @@
 
       // itemSize = 3 because there are 3 values per vertex
       waterGeometry.setAttribute('position', new THREE.BufferAttribute(waterVerts, 3));
+      waterGeometry.computeVertexNormals();
     }
 
     //create geometry
     const waterGeometry = new THREE.BufferGeometry();
-    const boatGeometry = new THREE.BufferGeometry();
     const waterVerts = new Float32Array(18 * worldSize * worldSize);
-    const boatVerts = new Float32Array(27);
+    const boatVerts = new Float32Array(36);
     ReDrawMesh();
-    DrawBoat();
     //add mat
     var waterMat = new THREE.MeshBasicMaterial();
     waterMat.color = new THREE.Color(0, 0.8, 1);
@@ -218,15 +194,18 @@
     //boat mat
     var boatMat = new THREE.MeshBasicMaterial();
     boatMat.color = new THREE.Color(0.8, 0.5, 0.6);
-    boatMat.wireframe = true;
+    //boatMat.wireframe = true;
     //create mesh
     const waterMesh = new THREE.Mesh(waterGeometry, waterMat);
     waterMesh.position.set(-worldSize / 2, 0, -worldSize / 2);
-    const boatMesh = new THREE.Mesh(boatGeometry, boatMat);
-    boatMesh.position.set(0, 0, 0);
+    const boatMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), boatMat);
+    boatMesh.position.set(Boat.positionX, 0, Boat.positionZ);
     //add to scene
     scene.add(waterMesh);
     scene.add(boatMesh);
+    //add light
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    scene.add(directionalLight);
 
     var controls = new OrbitControls(camera, renderer.domElement);
 
@@ -235,10 +214,10 @@
       renderer.render(scene, camera);
 
       controls.update();
-     // time += 0.1;
+      time += 0.1;
 
-    //  ReDrawMesh();
-      DrawBoat();
+      ReDrawMesh();
+      UpdateBoat();
       requestAnimationFrame(Update);
     };
 
