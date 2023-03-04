@@ -112,6 +112,51 @@
       return 1 - Math.sqrt(Math.pow(x1 - x, 2) + Math.pow(y1 - y, 2)) / worldSize;
     }
 
+    var DrawBoat = function () {
+      var startZ = -Boat.length * 0.5;
+      var stopZ = Boat.length * 0.5;
+
+      //top deck
+      boatVerts[0] = -0.5;
+      boatVerts[1] = 0.8;
+      boatVerts[2] = startZ;
+
+      boatVerts[3] = -0.5;
+      boatVerts[4] = 0.8;
+      boatVerts[5] = stopZ;
+
+      boatVerts[6] = 0.5;
+      boatVerts[7] = 0.8;
+      boatVerts[8] = startZ;
+
+      boatVerts[9] = -0.5;
+      boatVerts[10] = 0.8;
+      boatVerts[11] = stopZ;
+
+      boatVerts[12] = 0.5;
+      boatVerts[13] = 0.8;
+      boatVerts[14] = stopZ;
+
+      boatVerts[15] = 0.5;
+      boatVerts[16] = 0.8;
+      boatVerts[17] = startZ;
+      
+      //side 1
+      boatVerts[18] = -0.5;
+      boatVerts[19] = 0.8;
+      boatVerts[20] = startZ;
+
+      boatVerts[21] = -0.5;
+      boatVerts[22] = 0.8;
+      boatVerts[23] = stopZ;
+
+      boatVerts[24] = 0;
+      boatVerts[25] = -0.2;
+      boatVerts[26] = stopZ;
+
+      boatGeometry.setAttribute('position', new THREE.BufferAttribute(boatVerts, 3));
+    }
+
     var ReDrawMesh = function () {
       var vIndex = 0;
       for (var z = 0; z < worldSize; z++) {
@@ -126,55 +171,62 @@
           var xzy1 = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + 1 + -Settings.epicentreX, 2) + Math.pow(z + 1 + -Settings.epicentreZ, 2)));
 
           //tri 1
-          vertices[vIndex] = 0 + x;
-          vertices[1 + vIndex] = xy;
-          vertices[2 + vIndex] = 0 + z;
+          waterVerts[vIndex] = 0 + x;
+          waterVerts[1 + vIndex] = xy;
+          waterVerts[2 + vIndex] = 0 + z;
 
-          vertices[3 + vIndex] = 0 + x;
-          vertices[4 + vIndex] = zy1;
-          vertices[5 + vIndex] = 1.0 + z;
+          waterVerts[3 + vIndex] = 0 + x;
+          waterVerts[4 + vIndex] = zy1;
+          waterVerts[5 + vIndex] = 1.0 + z;
 
-          vertices[6 + vIndex] = 1.0 + x;
-          vertices[7 + vIndex] = xy1;
-          vertices[8 + vIndex] = 0 + z;
+          waterVerts[6 + vIndex] = 1.0 + x;
+          waterVerts[7 + vIndex] = xy1;
+          waterVerts[8 + vIndex] = 0 + z;
 
           //tri 2
-          vertices[9 + vIndex] = 0 + x;
-          vertices[10 + vIndex] = zy1;
-          vertices[11 + vIndex] = 1.0 + z;
+          waterVerts[9 + vIndex] = 0 + x;
+          waterVerts[10 + vIndex] = zy1;
+          waterVerts[11 + vIndex] = 1.0 + z;
 
-          vertices[12 + vIndex] = 1.0 + x;
-          vertices[13 + vIndex] = xzy1;
-          vertices[14 + vIndex] = 1.0 + z;
+          waterVerts[12 + vIndex] = 1.0 + x;
+          waterVerts[13 + vIndex] = xzy1;
+          waterVerts[14 + vIndex] = 1.0 + z;
 
-          vertices[15 + vIndex] = 1.0 + x;
-          vertices[16 + vIndex] = xy1;
-          vertices[17 + vIndex] = 0 + z;
+          waterVerts[15 + vIndex] = 1.0 + x;
+          waterVerts[16 + vIndex] = xy1;
+          waterVerts[17 + vIndex] = 0 + z;
 
           vIndex += 18;
         }
       }
 
       // itemSize = 3 because there are 3 values per vertex
-      geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+      waterGeometry.setAttribute('position', new THREE.BufferAttribute(waterVerts, 3));
     }
 
     //create geometry
-    const geometry = new THREE.BufferGeometry();
-    const vertices = new Float32Array(18 * worldSize * worldSize);
+    const waterGeometry = new THREE.BufferGeometry();
+    const boatGeometry = new THREE.BufferGeometry();
+    const waterVerts = new Float32Array(18 * worldSize * worldSize);
+    const boatVerts = new Float32Array(27);
     ReDrawMesh();
+    DrawBoat();
     //add mat
-    var mat = new THREE.MeshBasicMaterial();
-    //set the color of the cube
-    mat.color = new THREE.Color(0, 0.8, 1);
-    //then set the renderer to wireframe
-    mat.wireframe = true;
+    var waterMat = new THREE.MeshBasicMaterial();
+    waterMat.color = new THREE.Color(0, 0.8, 1);
+    waterMat.wireframe = true;
+    //boat mat
+    var boatMat = new THREE.MeshBasicMaterial();
+    boatMat.color = new THREE.Color(0.8, 0.5, 0.6);
+    boatMat.wireframe = true;
     //create mesh
-    const mesh = new THREE.Mesh(geometry, mat);
-    //reposition mesh
-    mesh.position.set(-worldSize / 2, 0, -worldSize / 2);
+    const waterMesh = new THREE.Mesh(waterGeometry, waterMat);
+    waterMesh.position.set(-worldSize / 2, 0, -worldSize / 2);
+    const boatMesh = new THREE.Mesh(boatGeometry, boatMat);
+    boatMesh.position.set(0, 0, 0);
     //add to scene
-    scene.add(mesh);
+    scene.add(waterMesh);
+    scene.add(boatMesh);
 
     var controls = new OrbitControls(camera, renderer.domElement);
 
@@ -183,9 +235,10 @@
       renderer.render(scene, camera);
 
       controls.update();
-      time += 0.1;
+     // time += 0.1;
 
-      ReDrawMesh();
+    //  ReDrawMesh();
+      DrawBoat();
       requestAnimationFrame(Update);
     };
 
