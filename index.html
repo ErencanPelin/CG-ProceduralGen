@@ -78,7 +78,7 @@
 
     var Settings = {
       timeSpeed: 1.0,
-      amplitude: 5.0,
+      amplitude: 1.0,
       rippleDropoff: 10,
       epicentreX: 50.0,
       epicentreZ: 50.0,
@@ -96,8 +96,8 @@
     //GUI
     const gui = new dat.GUI();
     const settingsFolder = gui.addFolder('Settings');
-    settingsFolder.add(Settings, 'amplitude', 0, 50);
-    settingsFolder.add(Settings, 'rippleDropoff', 2, 50);
+    settingsFolder.add(Settings, 'amplitude', 0, 5);
+    settingsFolder.add(Settings, 'rippleDropoff', 5, 50);
     settingsFolder.add(Settings, 'epicentreX', 0, worldSize);
     settingsFolder.add(Settings, 'epicentreZ', 0, worldSize);
     settingsFolder.open();
@@ -109,36 +109,39 @@
     boatFolder.open();
 
     var distance = function (x, y, x1, y1) {
-      return 1 - Math.sqrt(Math.pow(x1 - x, 2) + Math.pow(y1 - y, 2)) / worldSize;
+      return (1 - (Math.sqrt(Math.pow(x1 - x, 2) + Math.pow(y1 - y, 2)) / (worldSize * 1.5)));
     }
 
     var UpdateBoat = function () {
+      //store boats relative position for calculations
+      var x = (Boat.positionX - 1) + worldSize * 0.5;
+      var z = (Boat.positionZ - 1) + worldSize * 0.5;
       
-      var x = Boat.positionX - 1;
-      var z = Boat.positionZ - 1;
-      //calculate the boat's height
-      var vamp = Settings.amplitude * (distance(x, z, Settings.epicentreX, Settings.epicentreZ) / Settings.rippleDropoff);
+      //calculate the boat's height position points
+      var vamp = Settings.amplitude * Math.pow(distance(x, z, Settings.epicentreX, Settings.epicentreZ), Settings.rippleDropoff);
       var vtime = Math.sin(time);// * Math.PI;
-      var xy = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + -Settings.epicentreX, 2) + Math.pow(z + -Settings.epicentreZ, 2)));
-
-      //find the normal of the water below us so we can set our rotation equivalent
       
-      //calculate the direction we should be facing based off the normal we found:
-      //var axis = new T.Vector3().crossVectors(up, normal).normalize();
+      var fxy = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + -Settings.epicentreX, 2) + Math.pow(z + (Boat.length * 0.5) + -Settings.epicentreZ, 2)));
+      var bxy = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + -Settings.epicentreX, 2) + Math.pow(z - (Boat.length * 0.5) + 1 + -Settings.epicentreZ, 2)));
 
-      boatMesh.scale.set(1, 1, Boat.length);
+      //midpoint between front of the boat and back of the boat:
+      var mxy = (fxy + bxy) * 0.5;
+
+      //look at the midpoint of that
+   //   boatMesh.rotation.x = mxy;
       boatMesh.rotation.y = (Boat.rotationY / 360) * Math.PI * 2; //degs to rads
       boatMesh.position.set(
         Boat.positionX,
-        xy + 0.5,
+        mxy + 0.5,
         Boat.positionZ);
+      boatMesh.scale.set(1, 1, Boat.length);
     }
 
     var ReDrawMesh = function () {
       var vIndex = 0;
       for (var z = 0; z < worldSize; z++) {
         for (var x = 0; x < worldSize; x++) {
-          var vamp = Settings.amplitude * (distance(x, z, Settings.epicentreX, Settings.epicentreZ) / Settings.rippleDropoff);
+          var vamp = Settings.amplitude * Math.pow(distance(x, z, Settings.epicentreX, Settings.epicentreZ), Settings.rippleDropoff);
 
           //sin(sqrt(x2+y2))
           var vtime = Math.sin(time);// * Math.PI;
