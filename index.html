@@ -77,7 +77,8 @@
     document.body.appendChild(renderer.domElement);
 
     var Settings = {
-      timeSpeed: 1.0,
+      wireFrameMode: false,
+      timeSpeed: 0.1,
       amplitude: 1.0,
       rippleDropoff: 10,
       epicentreX: 50.0,
@@ -96,6 +97,8 @@
     //GUI
     const gui = new dat.GUI();
     const settingsFolder = gui.addFolder('Settings');
+    settingsFolder.add(Settings, 'wireFrameMode');
+    settingsFolder.add(Settings, 'timeSpeed', 0, 1);
     settingsFolder.add(Settings, 'amplitude', 0, 5);
     settingsFolder.add(Settings, 'rippleDropoff', 5, 50);
     settingsFolder.add(Settings, 'epicentreX', 0, worldSize);
@@ -121,18 +124,27 @@
       var vamp = Settings.amplitude * Math.pow(distance(x, z, Settings.epicentreX, Settings.epicentreZ), Settings.rippleDropoff);
       var vtime = Math.sin(time);// * Math.PI;
       
-      var fxy = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + -Settings.epicentreX, 2) + Math.pow(z + (Boat.length * 0.5) + -Settings.epicentreZ, 2)));
-      var bxy = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + -Settings.epicentreX, 2) + Math.pow(z - (Boat.length * 0.5) + 1 + -Settings.epicentreZ, 2)));
+      //z axis sample points
+      var fy = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + -Settings.epicentreX, 2) + Math.pow(z + (Boat.length * 0.5) + -Settings.epicentreZ, 2)));
+      var by = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + -Settings.epicentreX, 2) + Math.pow(z - (Boat.length * 0.5) + 1 + -Settings.epicentreZ, 2)));
+      //x axis sample points
+      var ry = vamp * Math.sin(-time + Math.sqrt(Math.pow(x + (Boat.length * 0.5) + -Settings.epicentreX, 2) + Math.pow(z + -Settings.epicentreZ, 2)));
+      var ly = vamp * Math.sin(-time + Math.sqrt(Math.pow(x - (Boat.length * 0.5) + 1 + -Settings.epicentreX, 2) + Math.pow(z + -Settings.epicentreZ, 2)));
 
       //midpoint between front of the boat and back of the boat:
-      var mxy = (fxy + bxy) * 0.5;
+      var my = (fy + by + ly + ry) * 0.25;
 
-      //look at the midpoint of that
-   //   boatMesh.rotation.x = mxy;
+      //calculate the rotation of the boat based on the front and back height samplers
+      boatMesh.rotation.x = (Math.atan(
+        (fy * (z + (Boat.length * 0.5))) - (by * (z - (Boat.length * 0.5) + 1)) / 
+        ((z - (Boat.length * 0.5) + 1) * (z + (Boat.length * 0.5)) + (fy * by))));
+      //do the same for the left and right height samplers
+    //  boatMesh.rotation.z = Math.atan2((ry + ly) / 2, 0.5);
+
       boatMesh.rotation.y = (Boat.rotationY / 360) * Math.PI * 2; //degs to rads
       boatMesh.position.set(
         Boat.positionX,
-        mxy + 0.5,
+        my + 0.5,
         Boat.positionZ);
       boatMesh.scale.set(1, 1, Boat.length);
     }
@@ -191,11 +203,10 @@
     const boatVerts = new Float32Array(36);
     ReDrawMesh();
     //add mat
-    var waterMat = new THREE.MeshBasicMaterial();
+    var waterMat = new THREE.MeshLambertMaterial();
     waterMat.color = new THREE.Color(0, 0.8, 1);
-    waterMat.wireframe = true;
     //boat mat
-    var boatMat = new THREE.MeshBasicMaterial();
+    var boatMat = new THREE.MeshLambertMaterial();
     boatMat.color = new THREE.Color(0.8, 0.5, 0.6);
     //boatMat.wireframe = true;
     //create mesh
@@ -207,9 +218,9 @@
     scene.add(waterMesh);
     scene.add(boatMesh);
     //add light
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(50,100,50) ;
     scene.add(directionalLight);
-
     var controls = new OrbitControls(camera, renderer.domElement);
 
     var Update = function () {
@@ -217,11 +228,13 @@
       renderer.render(scene, camera);
 
       controls.update();
-      time += 0.1;
+      time += Settings.timeSpeed;
 
       ReDrawMesh();
       UpdateBoat();
       requestAnimationFrame(Update);
+
+      waterMat.wireframe = Settings.wireFrameMode;
     };
 
     requestAnimationFrame(Update);
